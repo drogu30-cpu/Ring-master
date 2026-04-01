@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Tap Drop</title>
+<title>Tap Drop - Game</title>
 
 <style>
   body {
@@ -28,13 +28,54 @@
     justify-content: center;
     font-size: 28px;
     z-index: 10;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  #gameOverScreen {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.9);
+    color: white;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    z-index: 11;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  button {
+    padding: 10px 20px;
+    font-size: 20px;
+    background: cyan;
+    color: black;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+  }
+
+  button:hover {
+    background: #00ffff;
   }
 </style>
 </head>
 
 <body>
 
-<div id="startScreen">TAP TO START</div>
+<div id="startScreen">
+  <div>TAP DROP - THE GAME</div>
+  <button onclick="startGame()">TAP TO START</button>
+</div>
+
+<div id="gameOverScreen">
+  <div id="finalScore">Final Score: 0</div>
+  <button onclick="location.reload()">PLAY AGAIN</button>
+</div>
+
 <canvas id="game"></canvas>
 
 <script>
@@ -48,14 +89,19 @@ let score = 0;
 let speed = 2;
 let blocks = [];
 let started = false;
+let gameOver = false;
 
-// 🎧 Audio
-const music = new Audio("audio/background-music.mp3");
+// 🎧 Audio - Using your actual audio files
+const music = new Audio("mixkit-sparta-370.mp3");
 music.loop = true;
-music.volume = 0.4;
+music.volume = 0.3;
 
 function playWin() {
-  new Audio("audio/don-demarco.mp3").play();
+  try {
+    new Audio("Mind-Bender-2.ogg").play().catch(err => console.log("Win sound error:", err));
+  } catch(e) {
+    console.log("Could not play win sound");
+  }
 }
 
 function playError() {
@@ -76,21 +122,21 @@ function playError() {
   o.stop(a.currentTime + 0.25);
 }
 
-// 🎮 Start Game (fixes mobile audio issue)
-document.getElementById("startScreen").addEventListener("touchstart", startGame);
-document.getElementById("startScreen").addEventListener("click", startGame);
-
+// 🎮 Start Game
 function startGame() {
   if (started) return;
   started = true;
+  gameOver = false;
 
   document.getElementById("startScreen").style.display = "none";
+  document.getElementById("gameOverScreen").style.display = "none";
 
   music.play().catch(()=>{});
 }
 
 // 🎯 Blocks
 function spawnBlock() {
+  if (!started || gameOver) return;
   blocks.push({
     x: Math.random() * (canvas.width - 30),
     y: -30,
@@ -102,7 +148,7 @@ canvas.addEventListener("touchstart", handleTap);
 canvas.addEventListener("click", handleTap);
 
 function handleTap(e) {
-  if (!started) return;
+  if (!started || gameOver) return;
 
   const rect = canvas.getBoundingClientRect();
   const x = e.touches ? e.touches[0].clientX : e.clientX;
@@ -120,14 +166,25 @@ function handleTap(e) {
 
   if (!hit) playError();
 
-  // ⚡ Intensity system
+  // ⚡ Intensity system - gets harder as you score
   speed = 2 + score * 0.15;
   music.playbackRate = 1 + score * 0.02;
 
-  if (score === 15) playWin();
+  // 🏆 Win condition
+  if (score === 15) {
+    playWin();
+    endGame();
+  }
 }
 
-// 🔄 Loop
+function endGame() {
+  gameOver = true;
+  music.pause();
+  document.getElementById("finalScore").textContent = "Final Score: " + score;
+  document.getElementById("gameOverScreen").style.display = "flex";
+}
+
+// 🔄 Game Loop
 function update() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -138,17 +195,35 @@ function update() {
     ctx.fillRect(b.x, b.y, b.size, b.size);
   });
 
+  // Remove blocks that went off screen and check for game over
   blocks = blocks.filter(b => b.y < canvas.height);
 
+  // Display score
   ctx.fillStyle = "white";
   ctx.font = "24px Arial";
   ctx.fillText("Score: " + score, 20, 40);
 
+  // Check if any block reached the bottom (lose condition)
+  if (started && !gameOver) {
+    blocks.forEach(b => {
+      if (b.y > canvas.height) {
+        endGame();
+      }
+    });
+  }
+
   requestAnimationFrame(update);
 }
 
+// Start spawning blocks
 setInterval(spawnBlock, 900);
 update();
+
+// Handle window resize
+window.addEventListener("resize", () => {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+});
 </script>
 
 </body>
