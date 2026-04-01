@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tap Drop</title>
+
+<style>
+  body {
+    margin: 0;
+    background: #000;
+    overflow: hidden;
+    font-family: Arial;
+  }
+
+  canvas {
+    display: block;
+  }
+
+  #startScreen {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    background: black;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    z-index: 10;
+  }
+</style>
+</head>
+
+<body>
+
+<div id="startScreen">TAP TO START</div>
+<canvas id="game"></canvas>
+
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+let score = 0;
+let speed = 2;
+let blocks = [];
+let started = false;
+
+// 🎧 Audio
+const music = new Audio("audio/background-music.mp3");
+music.loop = true;
+music.volume = 0.4;
+
+function playWin() {
+  new Audio("audio/don-demarco.mp3").play();
+}
+
+function playError() {
+  const a = new (window.AudioContext || window.webkitAudioContext)();
+  const o = a.createOscillator();
+  const g = a.createGain();
+
+  o.type = "triangle";
+  o.frequency.setValueAtTime(200, a.currentTime);
+  o.frequency.exponentialRampToValueAtTime(90, a.currentTime + 0.2);
+
+  g.gain.setValueAtTime(0.3, a.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001, a.currentTime + 0.25);
+
+  o.connect(g);
+  g.connect(a.destination);
+  o.start();
+  o.stop(a.currentTime + 0.25);
+}
+
+// 🎮 Start Game (fixes mobile audio issue)
+document.getElementById("startScreen").addEventListener("touchstart", startGame);
+document.getElementById("startScreen").addEventListener("click", startGame);
+
+function startGame() {
+  if (started) return;
+  started = true;
+
+  document.getElementById("startScreen").style.display = "none";
+
+  music.play().catch(()=>{});
+}
+
+// 🎯 Blocks
+function spawnBlock() {
+  blocks.push({
+    x: Math.random() * (canvas.width - 30),
+    y: -30,
+    size: 30
+  });
+}
+
+canvas.addEventListener("touchstart", handleTap);
+canvas.addEventListener("click", handleTap);
+
+function handleTap(e) {
+  if (!started) return;
+
+  const rect = canvas.getBoundingClientRect();
+  const x = e.touches ? e.touches[0].clientX : e.clientX;
+  const y = e.touches ? e.touches[0].clientY : e.clientY;
+
+  let hit = false;
+
+  blocks.forEach((b, i) => {
+    if (x > b.x && x < b.x + b.size && y > b.y && y < b.y + b.size) {
+      blocks.splice(i, 1);
+      score++;
+      hit = true;
+    }
+  });
+
+  if (!hit) playError();
+
+  // ⚡ Intensity system
+  speed = 2 + score * 0.15;
+  music.playbackRate = 1 + score * 0.02;
+
+  if (score === 15) playWin();
+}
+
+// 🔄 Loop
+function update() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  ctx.fillStyle = "cyan";
+
+  blocks.forEach((b) => {
+    b.y += speed;
+    ctx.fillRect(b.x, b.y, b.size, b.size);
+  });
+
+  blocks = blocks.filter(b => b.y < canvas.height);
+
+  ctx.fillStyle = "white";
+  ctx.font = "24px Arial";
+  ctx.fillText("Score: " + score, 20, 40);
+
+  requestAnimationFrame(update);
+}
+
+setInterval(spawnBlock, 900);
+update();
+</script>
+
+</body>
+</html>
